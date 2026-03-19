@@ -15,9 +15,11 @@
     <key>WorkingDirectory</key>
     <string>/Users/utsavmehta/PersonalProjects/gameday</string>
 
-    <!-- Run once daily at 6:00 AM -->
+    <!-- Run once weekly on Monday at 6:00 AM -->
     <key>StartCalendarInterval</key>
     <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
         <key>Hour</key>
         <integer>6</integer>
         <key>Minute</key>
