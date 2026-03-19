@@ -1,0 +1,20 @@
+{
+  "name": "f1bot",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "sync": "node --experimental-sqlite dist/sync.js",
+    "check": "node --experimental-sqlite dist/checker.js"
+  },
+  "dependencies": {
+    "@slack/webhook": "^7.0.3",
+    "dotenv": "^16.4.5",
+    "luxon": "^3.4.4"
+  },
+  "devDependencies": {
+    "@types/luxon": "^3.4.2",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.3.3"
+  }
+}

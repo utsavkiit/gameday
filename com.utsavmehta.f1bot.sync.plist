@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.utsavmehta.f1bot.sync</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/node</string>
+        <string>--experimental-sqlite</string>
+        <string>/Users/utsavmehta/PersonalProjects/gameday/dist/sync.js</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/utsavmehta/PersonalProjects/gameday</string>
+
+    <!-- Run once daily at 6:00 AM -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>UserName</key>
+    <string>utsavmehta</string>
+
+    <key>StandardOutPath</key>
+    <string>/Users/utsavmehta/PersonalProjects/gameday/logs/sync.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/utsavmehta/PersonalProjects/gameday/logs/sync-error.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin</string>
+        <key>NODE_ENV</key>
+        <string>production</string>
+    </dict>
+</dict>
+</plist>
