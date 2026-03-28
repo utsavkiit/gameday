@@ -24,35 +24,25 @@ function require_env(key: string): string {
 
 export const SLACK_WEBHOOK_URL = require_env("SLACK_WEBHOOK_URL");
 export const TIMEZONE = process.env.TIMEZONE ?? "America/New_York";
-export const REMINDER_HOURS_EARLY = parseInt(process.env.REMINDER_HOURS_EARLY ?? "24");
-export const REMINDER_MINUTES_FINAL = parseInt(process.env.REMINDER_MINUTES_FINAL ?? "30");
-export const RESULTS_DELAY_MINUTES = 45;
-export const LIVE_POLL_INTERVAL_MINUTES = 5;
-export const GRACE_PERIOD_HOURS = 2; // skip notifications older than this
-
-// Session types the user wants notifications for (empty = all)
-const raw = process.env.SESSION_FILTER ?? "";
-export const SESSION_FILTER: string[] = raw
-  ? raw.split(",").map((s) => s.trim()).filter(Boolean)
-  : [];
-
+export const CRICKETDATA_API_KEY = require_env("CRICKETDATA_API_KEY");
+export const CRICKETDATA_BASE_URL = process.env.CRICKETDATA_BASE_URL ?? "https://api.cricapi.com/v1";
+export const OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1";
+export const OPEN_METEO_GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1";
+export const IPL_SEASON = parseInt(process.env.IPL_SEASON ?? `${new Date().getFullYear()}`, 10);
+export const IPL_SERIES_ID =
+  process.env.IPL_SERIES_ID ?? "d5a498c8-7596-4b93-8ab0-e0efc3345312";
+export const PRE_GAME_LOCAL_HOUR = parseInt(process.env.PRE_GAME_LOCAL_HOUR ?? "22", 10);
+export const PRE_MATCH_MINUTES = parseInt(process.env.PRE_MATCH_MINUTES ?? "15", 10);
+export const MID_INNINGS_OFFSET_MINUTES = parseInt(
+  process.env.MID_INNINGS_OFFSET_MINUTES ?? "125",
+  10
+);
+export const POST_MATCH_OFFSET_MINUTES = parseInt(
+  process.env.POST_MATCH_OFFSET_MINUTES ?? "250",
+  10
+);
+export const RETRY_INTERVAL_MINUTES = parseInt(process.env.RETRY_INTERVAL_MINUTES ?? "5", 10);
+export const GRACE_PERIOD_HOURS = parseInt(process.env.GRACE_PERIOD_HOURS ?? "12", 10);
 export const HEALTHCHECK_URL = process.env.HEALTHCHECK_URL ?? "";
-
-export const OPENF1_BASE_URL = "https://api.openf1.org/v1";
-export const DB_PATH = path.resolve(__dirname, "../f1bot.sqlite");
-
-export const SESSION_EMOJI: Record<string, string> = {
-  Practice: "🔧",
-  Qualifying: "⏱️",
-  "Sprint Qualifying": "⚡",
-  Sprint: "⚡",
-  Race: "🏁",
-};
-
-export const SESSION_DISPLAY: Record<string, string> = {
-  Practice: "Practice",
-  Qualifying: "Qualifying",
-  "Sprint Qualifying": "Sprint Qualifying",
-  Sprint: "Sprint Race",
-  Race: "Grand Prix",
-};
+export const FORCE_SYNC_SCHEDULE = process.env.FORCE_SYNC_SCHEDULE === "true";
+export const DB_PATH = path.resolve(__dirname, "../gameday.sqlite");

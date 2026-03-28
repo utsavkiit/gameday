@@ -1,21 +1,10 @@
 import { IncomingWebhook } from "@slack/webhook";
 import { DateTime } from "luxon";
-import { Driver, DriverPosition, Lap, Weather } from "./openf1";
 import { DueNotification } from "./db";
-import { SLACK_WEBHOOK_URL, TIMEZONE, SESSION_EMOJI, SESSION_DISPLAY } from "./config";
+import { MatchSnapshot } from "./cricket";
+import { SLACK_WEBHOOK_URL, TIMEZONE } from "./config";
 
 const webhook = new IncomingWebhook(SLACK_WEBHOOK_URL);
-
-const FLAG: Record<string, string> = {
-  GBR: "🇬🇧", GER: "🇩🇪", NED: "🇳🇱", ESP: "🇪🇸", MON: "🇲🇨",
-  MEX: "🇲🇽", AUS: "🇦🇺", FRA: "🇫🇷", FIN: "🇫🇮", DEN: "🇩🇰",
-  CAN: "🇨🇦", JPN: "🇯🇵", CHN: "🇨🇳", THA: "🇹🇭", NZL: "🇳🇿",
-  USA: "🇺🇸", BRA: "🇧🇷", ITA: "🇮🇹", ARG: "🇦🇷", BRN: "🇧🇭",
-  SAU: "🇸🇦", UAE: "🇦🇪", SGP: "🇸🇬", HUN: "🇭🇺", BEL: "🇧🇪",
-  AUT: "🇦🇹", POR: "🇵🇹", AZE: "🇦🇿",
-};
-
-const MEDAL: Record<number, string> = { 1: "🥇", 2: "🥈", 3: "🥉" };
 
 function localTime(isoUtc: string): string {
   return DateTime.fromISO(isoUtc, { zone: "utc" })
@@ -23,14 +12,39 @@ function localTime(isoUtc: string): string {
     .toFormat("EEE MMM d 'at' h:mm a ZZZZ");
 }
 
-function meetingName(n: DueNotification): string {
-  return `${n.country_name} Grand Prix`;
+function header(n: DueNotification): string {
+  return `${n.team_1} vs ${n.team_2}`;
 }
 
-function sessionHeader(n: DueNotification): string {
-  const emoji = SESSION_EMOJI[n.session_type] ?? "🏎️";
-  const display = SESSION_DISPLAY[n.session_type] ?? n.session_name;
-  return `${emoji} *${meetingName(n)}* — ${display}`;
+function venueLabel(n: DueNotification): string {
+  return [n.venue, n.city, n.country].filter(Boolean).join(", ");
+}
+
+function lineupText(snapshot: MatchSnapshot): string {
+  if (!snapshot.lineups.length) return "_Starting XIs unavailable right now._";
+  return snapshot.lineups
+    .map((team) => `*${team.name}*\n${team.players.slice(0, 11).join(", ")}`)
+    .join("\n\n");
+}
+
+function inningsText(snapshot: MatchSnapshot): string {
+  if (!snapshot.innings.length) return "_No innings score available yet._";
+  return snapshot.innings
+    .map((innings) => `*${innings.team}* ${innings.score} (${innings.overs} ov)`)
+    .join("\n");
+}
+
+function standingsText(snapshot: MatchSnapshot): string {
+  if (!snapshot.standings.length) return "_Standings unavailable from the API._";
+  return snapshot.standings
+    .slice(0, 6)
+    .map((row, index) => {
+      const played = row.played ?? "-";
+      const points = row.points ?? "-";
+      const nrr = row.netRunRate ?? "-";
+      return `${index + 1}. ${row.team}  P:${played}  Pts:${points}  NRR:${nrr}`;
+    })
+    .join("\n");
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,122 +60,97 @@ async function send(blocks: any[]): Promise<boolean> {
 
 // ── Public senders ──────────────────────────────────────────────────────────
 
-export async function sendReminderEarly(n: DueNotification): Promise<boolean> {
+export async function sendPreviewNight(
+  n: DueNotification,
+  weatherSummary: string | null
+): Promise<boolean> {
+  const weatherLine = weatherSummary ? `\n🌦️ Likely weather: ${weatherSummary}` : "";
   return send([
-    { type: "header", text: { type: "plain_text", text: "Formula 1 — Tomorrow" } },
+    { type: "header", text: { type: "plain_text", text: "IPL Tomorrow Night Preview" } },
     {
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `${sessionHeader(n)}\n📍 ${n.location}, ${n.country_name}\n🕐 ${localTime(n.date_start)}`,
+        text:
+          `🏏 *${header(n)}*\n` +
+          `🕐 ${localTime(n.date_start)}\n` +
+          `📍 ${venueLabel(n)}${weatherLine}`,
       },
     },
-    { type: "context", elements: [{ type: "mrkdwn", text: "Reminder sent 24 hours early" }] },
+    { type: "context", elements: [{ type: "mrkdwn", text: "Scheduled for 10:00 PM the night before" }] },
   ]);
 }
 
-export async function sendReminderFinal(n: DueNotification, minutes: number): Promise<boolean> {
+export async function sendPreMatch(
+  n: DueNotification,
+  snapshot: MatchSnapshot
+): Promise<boolean> {
   return send([
-    { type: "header", text: { type: "plain_text", text: `F1 Starting in ${minutes} Minutes!` } },
+    { type: "header", text: { type: "plain_text", text: "IPL Starting in 15 Minutes" } },
     {
       type: "section",
-      text: { type: "mrkdwn", text: `${sessionHeader(n)}\n🕐 ${localTime(n.date_start)}` },
+      text: {
+        type: "mrkdwn",
+        text:
+          `🏏 *${header(n)}*\n` +
+          `🕐 ${localTime(n.date_start)}\n` +
+          `📍 ${venueLabel(n)}\n` +
+          `🪙 ${snapshot.tossSummary ?? "Toss update unavailable yet."}`,
+      },
+    },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: lineupText(snapshot) },
     },
   ]);
 }
 
-export async function sendSessionStart(n: DueNotification, weather: Weather | null): Promise<boolean> {
-  const emoji = SESSION_EMOJI[n.session_type] ?? "🏎️";
-  let weatherText = "";
-  if (weather) {
-    const rain = weather.rainfall ? " 🌧️ Rain!" : "";
-    weatherText = `\n🌡️ Air: ${weather.air_temperature}°C  Track: ${weather.track_temperature}°C${rain}`;
-  }
-  return send([
-    { type: "header", text: { type: "plain_text", text: "Session Starting NOW!" } },
-    { type: "section", text: { type: "mrkdwn", text: `${sessionHeader(n)}${weatherText}` } },
-  ]);
-}
-
-export async function sendLiveUpdate(
+export async function sendMidInnings(
   n: DueNotification,
-  positions: DriverPosition[],
-  drivers: Map<number, Driver>
+  snapshot: MatchSnapshot
 ): Promise<boolean> {
-  const lines = positions.slice(0, 10).map((p) => {
-    const drv = drivers.get(p.driver_number);
-    const name = drv?.full_name ?? drv?.name_acronym ?? `#${p.driver_number}`;
-    const flag = FLAG[drv?.country_code ?? ""] ?? "";
-    const medal = MEDAL[p.position] ?? `\`${p.position}.\``;
-    return `${medal} ${flag} ${name}`;
-  });
-
-  if (!lines.length) return false;
-
   return send([
-    { type: "header", text: { type: "plain_text", text: "🏎️ Live Standings" } },
+    { type: "header", text: { type: "plain_text", text: "IPL Mid-Innings Update" } },
     {
       type: "section",
-      text: { type: "mrkdwn", text: `${sessionHeader(n)}\n\n${lines.join("\n")}` },
+      text: {
+        type: "mrkdwn",
+        text: `🏏 *${header(n)}*\n${inningsText(snapshot)}`,
+      },
     },
   ]);
 }
 
-export async function sendResults(
+export async function sendPostMatch(
   n: DueNotification,
-  positions: DriverPosition[],
-  drivers: Map<number, Driver>,
-  fastestLap: Lap | null
+  snapshot: MatchSnapshot
 ): Promise<boolean> {
-  const limit = ["Race", "Sprint"].includes(n.session_type) ? 10 : 5;
-  const lines = positions.slice(0, limit).map((p) => {
-    const drv = drivers.get(p.driver_number);
-    const name = drv?.full_name ?? drv?.name_acronym ?? `#${p.driver_number}`;
-    const flag = FLAG[drv?.country_code ?? ""] ?? "";
-    const team = drv?.team_name ?? "";
-    const medal = MEDAL[p.position] ?? `\`${p.position}.\``;
-    return `${medal} ${flag} ${name}  _${team}_`;
-  });
-
-  const body = lines.length ? lines.join("\n") : "_No position data available yet._";
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const blocks: any[] = [
-    { type: "header", text: { type: "plain_text", text: "🏁 Session Results" } },
-    { type: "section", text: { type: "mrkdwn", text: `${sessionHeader(n)}\n\n${body}` } },
+    { type: "header", text: { type: "plain_text", text: "IPL Final Result" } },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text:
+          `🏏 *${header(n)}*\n` +
+          `${snapshot.result ?? "Result unavailable yet."}\n\n` +
+          `${inningsText(snapshot)}`,
+      },
+    },
   ];
 
-  if (fastestLap?.lap_duration) {
-    const mins = Math.floor(fastestLap.lap_duration / 60);
-    const secs = (fastestLap.lap_duration % 60).toFixed(3).padStart(6, "0");
-    const drv = drivers.get(fastestLap.driver_number);
-    const name = drv?.name_acronym ?? `#${fastestLap.driver_number}`;
+  if (snapshot.playerOfTheMatch) {
     blocks.push({
       type: "context",
-      elements: [{ type: "mrkdwn", text: `⚡ Fastest Lap: *${name}* — ${mins}:${secs}` }],
+      elements: [{ type: "mrkdwn", text: `🏅 Player of the Match: *${snapshot.playerOfTheMatch}*` }],
     });
   }
 
+  blocks.push({
+    type: "section",
+    text: { type: "mrkdwn", text: `*Standings*\n${standingsText(snapshot)}` },
+  });
+
   return send(blocks);
-}
-
-export async function sendScheduleDigest(sessions: DueNotification[]): Promise<boolean> {
-  const lines: string[] = [];
-  let lastCountry = "";
-
-  for (const s of sessions.slice(0, 20)) {
-    const country = s.country_name;
-    if (country !== lastCountry) {
-      lines.push(`\n*${country} Grand Prix*`);
-      lastCountry = country;
-    }
-    const emoji = SESSION_EMOJI[s.session_type] ?? "•";
-    const display = SESSION_DISPLAY[s.session_type] ?? s.session_name;
-    lines.push(`  ${emoji} ${display} — ${localTime(s.date_start)}`);
-  }
-
-  return send([
-    { type: "header", text: { type: "plain_text", text: "🗓️ Upcoming F1 Schedule" } },
-    { type: "section", text: { type: "mrkdwn", text: lines.join("\n") } },
-  ]);
 }

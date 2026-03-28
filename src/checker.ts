@@ -1,8 +1,8 @@
 /**
  * checker.ts — run every 5 minutes via launchd
  *
- * Queries SQLite for due notifications, sends them to Slack,
- * marks them sent. For live race updates, reschedules the next poll.
+ * Queries SQLite for due IPL notifications, sends them to Slack,
+ * marks them sent, and retries when live match data is not ready yet.
  */
 
 import {
@@ -12,96 +12,105 @@ import {
   rescheduleNotification,
   DueNotification,
 } from "./db";
+import { getMatchSnapshot } from "./cricket";
+import { getForecastSummary } from "./weather";
 import {
-  getLivePositions,
-  getDrivers,
-  getFastestLap,
-  getLatestWeather,
-} from "./openf1";
-import {
-  sendReminderEarly,
-  sendReminderFinal,
-  sendSessionStart,
-  sendLiveUpdate,
-  sendResults,
+  sendMidInnings,
+  sendPostMatch,
+  sendPreMatch,
+  sendPreviewNight,
 } from "./slack";
-import { REMINDER_MINUTES_FINAL, LIVE_POLL_INTERVAL_MINUTES, HEALTHCHECK_URL } from "./config";
+import { HEALTHCHECK_URL, RETRY_INTERVAL_MINUTES } from "./config";
 
 function addMinutes(isoUtc: string, minutes: number): string {
   return new Date(new Date(isoUtc).getTime() + minutes * 60_000).toISOString();
 }
 
-function isSessionLive(n: DueNotification): boolean {
+function isMatchWindowOpen(n: DueNotification): boolean {
   const now = new Date().toISOString();
-  return n.date_start <= now && now <= addMinutes(n.date_end, 15);
+  return n.date_start <= now && now <= addMinutes(n.date_end, 180);
+}
+
+function retryOrClose(
+  db: ReturnType<typeof getDb>,
+  n: DueNotification,
+  latestAllowedAt: string
+): void {
+  const nextAttempt = addMinutes(new Date().toISOString(), RETRY_INTERVAL_MINUTES);
+  if (nextAttempt <= latestAllowedAt) {
+    rescheduleNotification(db, n.id, nextAttempt);
+    console.log(`[checker] Rescheduled ${n.type} for ${n.match_id} to ${nextAttempt}`);
+    return;
+  }
+  markSent(db, n.id);
+  console.log(`[checker] Expired ${n.type} for ${n.match_id}`);
+}
+
+function parseOvers(overs: string | undefined): number {
+  if (!overs) return 0;
+  const value = parseFloat(overs);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function isMidInningsSnapshot(snapshot: Awaited<ReturnType<typeof getMatchSnapshot>>): boolean {
+  if (!snapshot || snapshot.matchEnded || !snapshot.innings.length) return false;
+
+  const status = (snapshot.status || snapshot.result || "").toLowerCase();
+  const firstInningsOvers = parseOvers(snapshot.innings[0]?.overs);
+  const inningsBreakInStatus =
+    /innings break|end of innings|target|need \d+|require \d+/i.test(status);
+  const secondInningsStarted = snapshot.innings.length > 1;
+
+  return !secondInningsStarted && (inningsBreakInStatus || firstInningsOvers >= 19);
 }
 
 async function handle(db: ReturnType<typeof getDb>, n: DueNotification): Promise<void> {
-  const label = `[${n.session_key}] ${n.country_name} — ${n.session_name} (${n.type})`;
+  const label = `[${n.match_id}] ${n.team_1} vs ${n.team_2} (${n.type})`;
   console.log(`[checker] Processing: ${label}`);
 
   let sent = false;
 
   switch (n.type) {
-    case "reminder_24h": {
-      sent = await sendReminderEarly(n);
+    case "preview_night": {
+      const weather = await getForecastSummary(venueLabel(n), n.date_start);
+      sent = await sendPreviewNight(n, weather);
       break;
     }
 
-    case "reminder_30m": {
-      sent = await sendReminderFinal(n, REMINDER_MINUTES_FINAL);
+    case "pre_match": {
+      const snapshot = await getMatchSnapshot(n.match_id, n.series_id);
+      if (!snapshot || (!snapshot.tossSummary && !snapshot.lineups.length)) {
+        retryOrClose(db, n, addMinutes(n.date_start, 20));
+        return;
+      }
+      sent = await sendPreMatch(n, snapshot);
       break;
     }
 
-    case "session_start": {
-      const weather = await getLatestWeather(n.session_key);
-      sent = await sendSessionStart(n, weather);
-      break;
-    }
-
-    case "live_update": {
-      if (!isSessionLive(n)) {
-        // Race hasn't started or has finished — skip and mark done
-        console.log(`[checker] Session not live, skipping live_update for ${label}`);
+    case "mid_innings": {
+      if (!isMatchWindowOpen(n)) {
+        console.log(`[checker] Match window closed, skipping mid-innings for ${label}`);
         markSent(db, n.id);
         return;
       }
 
-      const [positions, drivers] = await Promise.all([
-        getLivePositions(n.session_key),
-        getDrivers(n.session_key),
-      ]);
+      const snapshot = await getMatchSnapshot(n.match_id, n.series_id);
 
-      if (positions.length) {
-        sent = await sendLiveUpdate(n, positions, drivers);
-      } else {
-        console.log(`[checker] No position data yet for ${label}`);
-        sent = true; // don't retry immediately — reschedule below
+      if (!snapshot || !isMidInningsSnapshot(snapshot)) {
+        retryOrClose(db, n, addMinutes(n.date_end, 90));
+        return;
       }
-
-      if (sent) {
-        // Reschedule next live update if race is still ongoing
-        const nextPoll = addMinutes(new Date().toISOString(), LIVE_POLL_INTERVAL_MINUTES);
-        const raceEnd = addMinutes(n.date_end, 15);
-        if (nextPoll < raceEnd) {
-          rescheduleNotification(db, n.id, nextPoll);
-          console.log(`[checker] Live update rescheduled to ${nextPoll}`);
-        } else {
-          markSent(db, n.id);
-          console.log(`[checker] Race finished, no more live updates`);
-        }
-        return; // already handled (reschedule or mark sent)
-      }
+      sent = await sendMidInnings(n, snapshot);
       break;
     }
 
-    case "results": {
-      const [positions, drivers, fastestLap] = await Promise.all([
-        getLivePositions(n.session_key),
-        getDrivers(n.session_key),
-        getFastestLap(n.session_key),
-      ]);
-      sent = await sendResults(n, positions, drivers, fastestLap);
+    case "post_match": {
+      const snapshot = await getMatchSnapshot(n.match_id, n.series_id);
+      if (!snapshot || !snapshot.matchEnded) {
+        retryOrClose(db, n, addMinutes(n.date_end, 240));
+        return;
+      }
+      sent = await sendPostMatch(n, snapshot);
       break;
     }
   }
@@ -112,6 +121,10 @@ async function handle(db: ReturnType<typeof getDb>, n: DueNotification): Promise
   } else {
     console.error(`[checker] Failed to send: ${label} — will retry next cycle`);
   }
+}
+
+function venueLabel(n: DueNotification): string {
+  return [n.venue, n.city, n.country].filter(Boolean).join(", ");
 }
 
 async function main(): Promise<void> {
