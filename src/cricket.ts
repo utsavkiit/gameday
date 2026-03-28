@@ -1,4 +1,4 @@
-import { CRICKETDATA_API_KEY, CRICKETDATA_BASE_URL, IPL_SEASON } from "./config";
+import { CRICKETDATA_API_KEY, CRICKETDATA_BASE_URL, IPL_SEASON } from "./ipl-config";
 
 export interface CricketScheduleMatch {
   id: string;

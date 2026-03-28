@@ -1,93 +1,78 @@
 /**
- * sync.ts — run once during setup (or manually with FORCE_SYNC_SCHEDULE=true)
+ * sync.ts — run once daily via launchd
  *
- * 1. Fetches the IPL schedule for the configured season
- * 2. Stores matches in SQLite
- * 3. Computes the fixed notification schedule for each match
+ * 1. Fetches sessions from OpenF1 for current (+ next) year
+ * 2. Upserts them into SQLite
+ * 3. Computes notification times and inserts them if not already present
  */
 
-import { DateTime } from "luxon";
-import {
-  countMatchesForSeason,
-  getDb,
-  getMetadata,
-  insertNotificationIfMissing,
-  Match,
-  setMetadata,
-  upsertMatch,
-} from "./db";
-import { CricketScheduleMatch, getIplSchedule } from "./cricket";
-import {
-  FORCE_SYNC_SCHEDULE,
-  IPL_SEASON,
-  IPL_SERIES_ID,
-  MID_INNINGS_OFFSET_MINUTES,
-  POST_MATCH_OFFSET_MINUTES,
-  PRE_GAME_LOCAL_HOUR,
-  PRE_MATCH_MINUTES,
-  TIMEZONE,
-} from "./config";
+import { getDb, upsertSession, insertNotificationIfMissing, Session } from "./db";
+import { getUpcomingSessions, OpenF1Session } from "./openf1";
+import { REMINDER_HOURS_EARLY, REMINDER_MINUTES_FINAL, RESULTS_DELAY_MINUTES, SESSION_FILTER } from "./config";
 
 function addMinutes(isoUtc: string, minutes: number): string {
   return new Date(new Date(isoUtc).getTime() + minutes * 60_000).toISOString();
 }
 
-function previousNightAtTenPm(isoUtc: string): string {
-  return DateTime.fromISO(isoUtc, { zone: "utc" })
-    .setZone(TIMEZONE)
-    .minus({ days: 1 })
-    .set({ hour: PRE_GAME_LOCAL_HOUR, minute: 0, second: 0, millisecond: 0 })
-    .toUTC()
-    .toISO() ?? isoUtc;
+function addHours(isoUtc: string, hours: number): string {
+  return addMinutes(isoUtc, hours * 60);
 }
 
-function toMatch(s: CricketScheduleMatch): Match {
+function toSession(s: OpenF1Session): Session {
   return {
-    match_id: s.id,
-    series_id: IPL_SERIES_ID,
-    season: IPL_SEASON,
-    title: s.title,
-    team_1: s.team1,
-    team_2: s.team2,
-    date_start: s.dateTimeGmt,
-    date_end: s.dateEndGmt,
-    venue: s.venue,
-    city: s.city,
-    country: s.country,
-    status: s.status,
+    session_key: s.session_key,
+    session_type: s.session_type,
+    session_name: s.session_name,
+    date_start: s.date_start,
+    date_end: s.date_end ?? addHours(s.date_start, 2),
+    location: s.location,
+    country_name: s.country_name,
+    country_code: s.country_code,
+    circuit_short_name: s.circuit_short_name,
+    year: s.year,
   };
 }
 
-function scheduleNotifications(db: ReturnType<typeof getDb>, match: Match): void {
-  insertNotificationIfMissing(db, match.match_id, "preview_night", previousNightAtTenPm(match.date_start));
-  insertNotificationIfMissing(db, match.match_id, "pre_match", addMinutes(match.date_start, -PRE_MATCH_MINUTES));
-  insertNotificationIfMissing(db, match.match_id, "mid_innings", addMinutes(match.date_start, MID_INNINGS_OFFSET_MINUTES));
-  insertNotificationIfMissing(db, match.match_id, "post_match", addMinutes(match.date_start, POST_MATCH_OFFSET_MINUTES));
+function scheduleNotifications(db: ReturnType<typeof getDb>, session: Session): void {
+  const key = session.session_key;
+  const start = session.date_start;
+  const end = session.date_end;
+  const isRaceLike = ["Race", "Sprint"].includes(session.session_type);
+
+  insertNotificationIfMissing(db, key, "reminder_24h", addHours(start, -REMINDER_HOURS_EARLY));
+  insertNotificationIfMissing(db, key, "reminder_30m", addMinutes(start, -REMINDER_MINUTES_FINAL));
+  insertNotificationIfMissing(db, key, "session_start", start);
+  insertNotificationIfMissing(db, key, "results", addMinutes(end, RESULTS_DELAY_MINUTES));
+
+  if (isRaceLike) {
+    insertNotificationIfMissing(db, key, "live_update", addMinutes(start, 10));
+  }
 }
 
 async function main(): Promise<void> {
   console.log(`[sync] Starting — ${new Date().toISOString()}`);
   const db = getDb();
-  const syncKey = `ipl_schedule_synced_${IPL_SEASON}`;
-  const alreadySynced = getMetadata(db, syncKey) === "true";
-  const existingMatches = countMatchesForSeason(db, IPL_SEASON);
 
-  if (alreadySynced && existingMatches > 0 && !FORCE_SYNC_SCHEDULE) {
-    console.log(`[sync] IPL ${IPL_SEASON} schedule already stored (${existingMatches} matches), skipping`);
-    return;
+  const now = new Date();
+  const years = [now.getFullYear()];
+  if (now.getMonth() >= 10) years.push(now.getFullYear() + 1);
+
+  let total = 0;
+  for (const year of years) {
+    const sessions = await getUpcomingSessions(year);
+    console.log(`[sync] ${year}: ${sessions.length} upcoming sessions`);
+
+    for (const s of sessions) {
+      if (SESSION_FILTER.length && !SESSION_FILTER.includes(s.session_type)) continue;
+
+      const session = toSession(s);
+      upsertSession(db, session);
+      scheduleNotifications(db, session);
+      total++;
+    }
   }
 
-  const matches = await getIplSchedule(IPL_SERIES_ID);
-  console.log(`[sync] IPL ${IPL_SEASON}: ${matches.length} match(es) fetched`);
-
-  for (const scheduleMatch of matches) {
-    const match = toMatch(scheduleMatch);
-    upsertMatch(db, match);
-    scheduleNotifications(db, match);
-  }
-
-  setMetadata(db, syncKey, "true");
-  console.log(`[sync] Done — ${matches.length} matches processed`);
+  console.log(`[sync] Done — ${total} sessions processed`);
 }
 
 main().catch((err) => {

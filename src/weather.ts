@@ -1,4 +1,4 @@
-import { OPEN_METEO_BASE_URL, OPEN_METEO_GEOCODING_URL } from "./config";
+import { OPEN_METEO_BASE_URL, OPEN_METEO_GEOCODING_URL } from "./ipl-config";
 
 interface GeoResult {
   latitude: number;

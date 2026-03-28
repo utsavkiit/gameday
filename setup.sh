@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# GameDay IPL Bot — setup script
+# F1 Slack Bot — setup script
 # Installs dependencies, builds TypeScript, and registers
 # the two LaunchDaemon plists.
 # ============================================================
@@ -13,7 +13,7 @@ CHECKER_PLIST_DEST="/Library/LaunchDaemons/com.utsavmehta.f1bot.checker.plist"
 SYNC_PLIST_DEST="/Library/LaunchDaemons/com.utsavmehta.f1bot.sync.plist"
 
 echo ""
-echo "=== GameDay IPL Bot Setup ==="
+echo "=== F1 Slack Bot Setup ==="
 echo "Project: $PROJECT_DIR"
 echo ""
 
@@ -38,7 +38,6 @@ if [ ! -f "$PROJECT_DIR/.env" ]; then
     echo "⚠️  Created .env from .env.example"
     echo "   👉 Edit $PROJECT_DIR/.env and set:"
     echo "      SLACK_WEBHOOK_URL=https://hooks.slack.com/services/..."
-    echo "      CRICKETDATA_API_KEY=..."
     echo "      TIMEZONE=America/New_York"
     echo ""
     echo "   Then re-run this script."
@@ -47,10 +46,6 @@ fi
 
 if grep -q "YOUR/WEBHOOK/URL" "$PROJECT_DIR/.env"; then
     echo "⚠️  SLACK_WEBHOOK_URL is still the placeholder. Edit .env first."
-    exit 1
-fi
-if grep -q "YOUR_CRICKETDATA_API_KEY" "$PROJECT_DIR/.env"; then
-    echo "⚠️  CRICKETDATA_API_KEY is still the placeholder. Edit .env first."
     exit 1
 fi
 echo "✅ .env configured"
@@ -70,7 +65,7 @@ node -e "
 const { IncomingWebhook } = require('@slack/webhook');
 require('dotenv').config();
 const wh = new IncomingWebhook(process.env.SLACK_WEBHOOK_URL);
-wh.send({ text: '✅ GameDay IPL bot is being set up — match notifications will appear here!' })
+wh.send({ text: '✅ F1 Bot is being set up — race notifications will appear here!' })
   .then(() => { console.log('✅ Slack test message sent'); })
   .catch(e => { console.error('❌ Slack test failed:', e.message); process.exit(1); });
 "
@@ -107,4 +102,8 @@ echo "🛑 To stop:"
 echo "   sudo launchctl unload $CHECKER_PLIST_DEST"
 echo "   sudo launchctl unload $SYNC_PLIST_DEST"
 echo ""
-echo "✅ Done! GameDay IPL bot is running. Checker fires every 5 min and the schedule sync can be run on demand."
+echo "✅ Done! F1 Bot is running. Checker fires every 5 min, sync runs daily at 6am."
+echo ""
+echo "ℹ️  IPL bot commands are separate:"
+echo "   npm run ipl:sync"
+echo "   npm run ipl:check"
