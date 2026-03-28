@@ -78,7 +78,7 @@ export async function sendSessionStart(n: DueNotification, weather: Weather | nu
     weatherText = `\n🌡️ Air: ${weather.air_temperature}°C  Track: ${weather.track_temperature}°C${rain}`;
   }
   return send([
-    { type: "header", text: { type: "plain_text", text: `${emoji} Session Starting NOW!` } },
+    { type: "header", text: { type: "plain_text", text: "Session Starting NOW!" } },
     { type: "section", text: { type: "mrkdwn", text: `${sessionHeader(n)}${weatherText}` } },
   ]);
 }

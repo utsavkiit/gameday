@@ -25,7 +25,7 @@ import {
   sendLiveUpdate,
   sendResults,
 } from "./slack";
-import { REMINDER_MINUTES_FINAL, LIVE_POLL_INTERVAL_MINUTES } from "./config";
+import { REMINDER_MINUTES_FINAL, LIVE_POLL_INTERVAL_MINUTES, HEALTHCHECK_URL } from "./config";
 
 function addMinutes(isoUtc: string, minutes: number): string {
   return new Date(new Date(isoUtc).getTime() + minutes * 60_000).toISOString();
@@ -123,6 +123,12 @@ async function main(): Promise<void> {
 
   for (const n of due) {
     await handle(db, n);
+  }
+
+  if (HEALTHCHECK_URL) {
+    await fetch(HEALTHCHECK_URL).catch((err) =>
+      console.error("[checker] Healthcheck ping failed:", err)
+    );
   }
 
   console.log(`[checker] Done`);

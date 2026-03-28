@@ -36,6 +36,8 @@ export const SESSION_FILTER: string[] = raw
   ? raw.split(",").map((s) => s.trim()).filter(Boolean)
   : [];
 
+export const HEALTHCHECK_URL = process.env.HEALTHCHECK_URL ?? "";
+
 export const OPENF1_BASE_URL = "https://api.openf1.org/v1";
 export const DB_PATH = path.resolve(__dirname, "../f1bot.sqlite");
 
