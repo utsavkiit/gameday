@@ -96,7 +96,7 @@ async function handle(db: ReturnType<typeof getIplDb>, n: DueNotification): Prom
 
     case "post_match": {
       const snapshot = await getMatchSnapshot(n.match_id, n.series_id);
-      if (!snapshot || !snapshot.matchEnded || !snapshot.innings.length) {
+      if (!snapshot || !snapshot.matchEnded) {
         retryOrClose(db, n, addMinutes(n.date_end, 240));
         return;
       }
