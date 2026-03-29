@@ -43,6 +43,5 @@ export const POST_MATCH_OFFSET_MINUTES = parseInt(
 );
 export const RETRY_INTERVAL_MINUTES = parseInt(process.env.RETRY_INTERVAL_MINUTES ?? "5", 10);
 export const IPL_GRACE_PERIOD_HOURS = parseInt(process.env.IPL_GRACE_PERIOD_HOURS ?? "12", 10);
-export const IPL_HEALTHCHECK_URL = process.env.IPL_HEALTHCHECK_URL ?? "";
 export const FORCE_SYNC_SCHEDULE = process.env.FORCE_SYNC_SCHEDULE === "true";
 export const IPL_DB_PATH = path.resolve(__dirname, "../iplbot.sqlite");

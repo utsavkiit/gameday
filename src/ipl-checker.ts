@@ -10,7 +10,8 @@ import {
   markSent,
   rescheduleNotification,
 } from "./ipl-db";
-import { IPL_HEALTHCHECK_URL, RETRY_INTERVAL_MINUTES } from "./ipl-config";
+import { RETRY_INTERVAL_MINUTES } from "./ipl-config";
+import { HEALTHCHECK_URL } from "./config";
 import {
   sendMidInnings,
   sendPostMatch,
@@ -122,8 +123,8 @@ async function main(): Promise<void> {
     await handle(db, n);
   }
 
-  if (IPL_HEALTHCHECK_URL) {
-    await fetch(IPL_HEALTHCHECK_URL).catch((err) =>
+  if (HEALTHCHECK_URL) {
+    await fetch(HEALTHCHECK_URL).catch((err) =>
       console.error("[ipl-checker] Healthcheck ping failed:", err)
     );
   }
