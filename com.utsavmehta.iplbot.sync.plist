@@ -3,33 +3,38 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.utsavmehta.f1bot.checker</string>
+    <string>com.utsavmehta.iplbot.sync</string>
 
     <key>ProgramArguments</key>
     <array>
         <string>/opt/homebrew/bin/node</string>
         <string>--experimental-sqlite</string>
-        <string>/Users/utsavmehta/PersonalProjects/gameday/dist/checker.js</string>
+        <string>/Users/utsavmehta/PersonalProjects/gameday/dist/ipl-sync.js</string>
     </array>
 
     <key>WorkingDirectory</key>
     <string>/Users/utsavmehta/PersonalProjects/gameday</string>
 
-    <!-- Run every 15 minutes -->
-    <key>StartInterval</key>
-    <integer>900</integer>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
 
     <key>RunAtLoad</key>
     <true/>
 
-    <!-- Run as this user (required for LaunchDaemon) -->
     <key>UserName</key>
     <string>utsavmehta</string>
 
     <key>StandardOutPath</key>
-    <string>/Users/utsavmehta/PersonalProjects/gameday/logs/checker.log</string>
+    <string>/Users/utsavmehta/PersonalProjects/gameday/logs/ipl-sync.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/utsavmehta/PersonalProjects/gameday/logs/checker-error.log</string>
+    <string>/Users/utsavmehta/PersonalProjects/gameday/logs/ipl-sync-error.log</string>
 
     <key>EnvironmentVariables</key>
     <dict>

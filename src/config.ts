@@ -28,9 +28,8 @@ export const REMINDER_HOURS_EARLY = parseInt(process.env.REMINDER_HOURS_EARLY ??
 export const REMINDER_MINUTES_FINAL = parseInt(process.env.REMINDER_MINUTES_FINAL ?? "30");
 export const RESULTS_DELAY_MINUTES = 45;
 export const LIVE_POLL_INTERVAL_MINUTES = 5;
-export const GRACE_PERIOD_HOURS = 2; // skip notifications older than this
+export const GRACE_PERIOD_HOURS = 2;
 
-// Session types the user wants notifications for (empty = all)
 const raw = process.env.SESSION_FILTER ?? "";
 export const SESSION_FILTER: string[] = raw
   ? raw.split(",").map((s) => s.trim()).filter(Boolean)

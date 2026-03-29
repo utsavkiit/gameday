@@ -44,8 +44,6 @@ async function send(blocks: any[]): Promise<boolean> {
   }
 }
 
-// ── Public senders ──────────────────────────────────────────────────────────
-
 export async function sendReminderEarly(n: DueNotification): Promise<boolean> {
   return send([
     { type: "header", text: { type: "plain_text", text: "Formula 1 — Tomorrow" } },
@@ -71,7 +69,6 @@ export async function sendReminderFinal(n: DueNotification, minutes: number): Pr
 }
 
 export async function sendSessionStart(n: DueNotification, weather: Weather | null): Promise<boolean> {
-  const emoji = SESSION_EMOJI[n.session_type] ?? "🏎️";
   let weatherText = "";
   if (weather) {
     const rain = weather.rainfall ? " 🌧️ Rain!" : "";

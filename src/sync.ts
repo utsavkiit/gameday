@@ -24,7 +24,7 @@ function toSession(s: OpenF1Session): Session {
     session_type: s.session_type,
     session_name: s.session_name,
     date_start: s.date_start,
-    date_end: s.date_end ?? addHours(s.date_start, 2), // fallback: 2h duration
+    date_end: s.date_end ?? addHours(s.date_start, 2),
     location: s.location,
     country_name: s.country_name,
     country_code: s.country_code,
@@ -39,21 +39,13 @@ function scheduleNotifications(db: ReturnType<typeof getDb>, session: Session): 
   const end = session.date_end;
   const isRaceLike = ["Race", "Sprint"].includes(session.session_type);
 
-  insertNotificationIfMissing(db, key, "reminder_24h",
-    addHours(start, -REMINDER_HOURS_EARLY));
-
-  insertNotificationIfMissing(db, key, "reminder_30m",
-    addMinutes(start, -REMINDER_MINUTES_FINAL));
-
+  insertNotificationIfMissing(db, key, "reminder_24h", addHours(start, -REMINDER_HOURS_EARLY));
+  insertNotificationIfMissing(db, key, "reminder_30m", addMinutes(start, -REMINDER_MINUTES_FINAL));
   insertNotificationIfMissing(db, key, "session_start", start);
+  insertNotificationIfMissing(db, key, "results", addMinutes(end, RESULTS_DELAY_MINUTES));
 
-  insertNotificationIfMissing(db, key, "results",
-    addMinutes(end, RESULTS_DELAY_MINUTES));
-
-  // Live updates only for Race and Sprint
   if (isRaceLike) {
-    insertNotificationIfMissing(db, key, "live_update",
-      addMinutes(start, 10)); // first update 10 min after race start
+    insertNotificationIfMissing(db, key, "live_update", addMinutes(start, 10));
   }
 }
 
@@ -63,7 +55,7 @@ async function main(): Promise<void> {
 
   const now = new Date();
   const years = [now.getFullYear()];
-  if (now.getMonth() >= 10) years.push(now.getFullYear() + 1); // Nov+ fetch next year
+  if (now.getMonth() >= 10) years.push(now.getFullYear() + 1);
 
   let total = 0;
   for (const year of years) {

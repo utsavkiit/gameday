@@ -1,11 +1,13 @@
 {
-  "name": "f1bot",
+  "name": "gameday",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "build": "tsc",
     "sync": "node --experimental-sqlite dist/sync.js",
-    "check": "node --experimental-sqlite dist/checker.js"
+    "check": "node --experimental-sqlite dist/checker.js",
+    "ipl:sync": "node --experimental-sqlite dist/ipl-sync.js",
+    "ipl:check": "node --experimental-sqlite dist/ipl-checker.js"
   },
   "dependencies": {
     "@slack/webhook": "^7.0.3",

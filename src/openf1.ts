@@ -81,7 +81,6 @@ export async function getLivePositions(session_key: number): Promise<DriverPosit
   const data = await get<DriverPosition>("position", { session_key });
   if (!data.length) return [];
 
-  // Keep latest position per driver
   const latest = new Map<number, DriverPosition>();
   for (const entry of data) {
     const existing = latest.get(entry.driver_number);

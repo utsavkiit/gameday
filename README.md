@@ -1,113 +1,75 @@
-# F1 Bot
+# GameDay
 
-A personal Formula 1 Slack bot that runs forever on a Mac mini and sends notifications before, during, and after every session.
+This repo now contains two separate bots:
 
-## How it works
+- F1 bot: the original OpenF1-based workflow and `f1bot.sqlite` schema are unchanged.
+- IPL bot: a separate Cricket Data workflow with its own `iplbot.sqlite` database and commands.
 
-Two short-lived scripts run on a schedule via macOS LaunchDaemons:
+## F1 bot
 
-- **`sync.ts`** — runs once daily at 6am. Fetches the F1 calendar from [OpenF1](https://openf1.org/) and writes sessions + notification schedule to a local SQLite database.
-- **`checker.ts`** — runs every 5 minutes. Checks if any notifications are due, sends them to Slack, and marks them sent.
+The existing F1 bot still uses:
 
-No long-running process. No job queue. launchd handles scheduling and restarts.
+- `src/sync.ts` and `src/checker.ts`
+- `src/db.ts` and `f1bot.sqlite`
+- `npm run sync` and `npm run check`
 
-## Notifications
+## IPL bot
 
-| When | What you get |
-|------|-------------|
-| 24 hours before | Session reminder with location and local time |
-| 30 minutes before | Final "starting soon" alert |
-| Session start | Start notification + track weather |
-| Every 5 min (Race & Sprint only) | Live top-10 standings |
-| 45 min after session ends | Final results with fastest lap |
+The IPL bot uses separate files so it does not touch the F1 tables:
 
-## Stack
+- `src/ipl-sync.ts` and `src/ipl-checker.ts`
+- `src/ipl-db.ts` and `iplbot.sqlite`
+- `npm run ipl:sync` and `npm run ipl:check`
 
-- **TypeScript** + Node 22
-- **node:sqlite** — built-in SQLite, no native dependencies
-- **OpenF1 API** — free, no API key required
-- **Slack Incoming Webhooks** — no bot token needed
-- **launchd** — macOS system scheduler, runs even when Mac mini is locked
+Notifications for each IPL 2025 match:
 
-## Setup
+- 10:00 PM EDT the night before: teams, start time, venue, likely weather
+- 15 minutes before start: toss result and starting XIs
+- Mid-innings break: first-innings score update
+- Post-match: result, player of the match, and standings
 
-### 1. Prerequisites
+## Config
 
-- Mac mini with Node 22+
-- A Slack workspace where you can add an app
+Copy `.env.example` to `.env`.
 
-### 2. Create a Slack Incoming Webhook
-
-1. Go to [api.slack.com/apps](https://api.slack.com/apps) → Create New App → From scratch
-2. Add the **Incoming Webhooks** feature and activate it
-3. Click **Add New Webhook to Workspace** and pick a channel
-4. Copy the webhook URL
-
-### 3. Configure
+Required for F1:
 
 ```bash
-cp .env.example .env
-```
-
-Edit `.env`:
-
-```
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+SLACK_WEBHOOK_URL=...
 TIMEZONE=America/New_York
 ```
 
-Find your timezone name [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
-
-### 4. Install and deploy
+Required for IPL:
 
 ```bash
-./setup.sh
+CRICKETDATA_API_KEY=...
+IPL_SEASON=2025
+IPL_SERIES_ID=d5a498c8-7596-4b93-8ab0-e0efc3345312
 ```
 
-This will:
-- Install npm dependencies
-- Build TypeScript
-- Test your Slack webhook
-- Run the initial schedule sync
-- Install and start both LaunchDaemons (requires `sudo`)
+Optional IPL overrides:
 
-## Mac mini tips
-
-- **System Settings → Energy** → enable "Prevent automatic sleeping when display is off" so jobs don't miss while the machine sleeps
-- **System Settings → Energy** → enable "Start up automatically after a power failure" so the bot survives power outages without you touching anything
+```bash
+IPL_SLACK_WEBHOOK_URL=
+IPL_TIMEZONE=
+IPL_HEALTHCHECK_URL=
+PRE_GAME_LOCAL_HOUR=22
+PRE_MATCH_MINUTES=15
+MID_INNINGS_OFFSET_MINUTES=125
+POST_MATCH_OFFSET_MINUTES=250
+RETRY_INTERVAL_MINUTES=5
+FORCE_SYNC_SCHEDULE=false
+```
 
 ## Commands
 
 ```bash
-# Manual sync (re-fetch schedule from OpenF1)
-npm run sync
-
-# Manual check (send any due notifications now)
-npm run check
-
-# Rebuild after editing source
 npm run build
-
-# View logs
-tail -f logs/checker.log
-tail -f logs/sync.log
-
-# Stop the bot
-sudo launchctl unload /Library/LaunchDaemons/com.utsavmehta.f1bot.checker.plist
-sudo launchctl unload /Library/LaunchDaemons/com.utsavmehta.f1bot.sync.plist
-
-# Start the bot
-sudo launchctl load /Library/LaunchDaemons/com.utsavmehta.f1bot.checker.plist
-sudo launchctl load /Library/LaunchDaemons/com.utsavmehta.f1bot.sync.plist
+npm run sync
+npm run check
+npm run ipl:sync
+npm run ipl:check
+./setup.sh
 ```
 
-## Optional: filter session types
-
-To only get notifications for certain sessions, set `SESSION_FILTER` in `.env`:
-
-```
-# Options: Practice, Qualifying, Sprint Qualifying, Sprint, Race
-SESSION_FILTER=Qualifying,Race
-```
-
-Leave blank to receive notifications for all sessions.
+`./setup.sh` still sets up the original F1 launchd jobs. The IPL bot is currently runnable via the `ipl:*` scripts without altering the existing F1 daemon setup.

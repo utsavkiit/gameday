@@ -31,7 +31,6 @@ export interface DueNotification {
   type: NotificationType;
   scheduled_at: string;
   sent_at: string | null;
-  // joined from sessions
   session_type: string;
   session_name: string;
   date_start: string;
@@ -135,11 +134,11 @@ export function getDueNotifications(db: Db): DueNotification[] {
 }
 
 export function markSent(db: Db, id: number): void {
-  db.prepare(`UPDATE notifications SET sent_at = ? WHERE id = ?`)
+  db.prepare("UPDATE notifications SET sent_at = ? WHERE id = ?")
     .run(new Date().toISOString(), id);
 }
 
 export function rescheduleNotification(db: Db, id: number, newScheduledAt: string): void {
-  db.prepare(`UPDATE notifications SET scheduled_at = ? WHERE id = ?`)
+  db.prepare("UPDATE notifications SET scheduled_at = ? WHERE id = ?")
     .run(newScheduledAt, id);
 }

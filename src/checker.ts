@@ -61,7 +61,6 @@ async function handle(db: ReturnType<typeof getDb>, n: DueNotification): Promise
 
     case "live_update": {
       if (!isSessionLive(n)) {
-        // Race hasn't started or has finished — skip and mark done
         console.log(`[checker] Session not live, skipping live_update for ${label}`);
         markSent(db, n.id);
         return;
@@ -76,11 +75,10 @@ async function handle(db: ReturnType<typeof getDb>, n: DueNotification): Promise
         sent = await sendLiveUpdate(n, positions, drivers);
       } else {
         console.log(`[checker] No position data yet for ${label}`);
-        sent = true; // don't retry immediately — reschedule below
+        sent = true;
       }
 
       if (sent) {
-        // Reschedule next live update if race is still ongoing
         const nextPoll = addMinutes(new Date().toISOString(), LIVE_POLL_INTERVAL_MINUTES);
         const raceEnd = addMinutes(n.date_end, 15);
         if (nextPoll < raceEnd) {
@@ -88,9 +86,9 @@ async function handle(db: ReturnType<typeof getDb>, n: DueNotification): Promise
           console.log(`[checker] Live update rescheduled to ${nextPoll}`);
         } else {
           markSent(db, n.id);
-          console.log(`[checker] Race finished, no more live updates`);
+          console.log("[checker] Race finished, no more live updates");
         }
-        return; // already handled (reschedule or mark sent)
+        return;
       }
       break;
     }
@@ -131,7 +129,7 @@ async function main(): Promise<void> {
     );
   }
 
-  console.log(`[checker] Done`);
+  console.log("[checker] Done");
 }
 
 main().catch((err) => {
