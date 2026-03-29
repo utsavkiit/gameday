@@ -25,7 +25,7 @@ import {
 } from "./ipl-config";
 
 function addMinutes(isoUtc: string, minutes: number): string {
-  return new Date(new Date(isoUtc).getTime() + minutes * 60_000).toISOString();
+  return DateTime.fromISO(isoUtc, { zone: "utc" }).plus({ minutes }).toUTC().toISO() ?? isoUtc;
 }
 
 function previousNightAtTenPm(isoUtc: string): string {
