@@ -3,33 +3,31 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.utsavmehta.f1bot.checker</string>
+    <string>com.utsavmehta.iplbot.checker</string>
 
     <key>ProgramArguments</key>
     <array>
         <string>/opt/homebrew/bin/node</string>
         <string>--experimental-sqlite</string>
-        <string>/Users/utsavmehta/PersonalProjects/gameday/dist/checker.js</string>
+        <string>/Users/utsavmehta/PersonalProjects/gameday/dist/ipl-checker.js</string>
     </array>
 
     <key>WorkingDirectory</key>
     <string>/Users/utsavmehta/PersonalProjects/gameday</string>
 
-    <!-- Run every 15 minutes -->
     <key>StartInterval</key>
-    <integer>900</integer>
+    <integer>300</integer>
 
     <key>RunAtLoad</key>
     <true/>
 
-    <!-- Run as this user (required for LaunchDaemon) -->
     <key>UserName</key>
     <string>utsavmehta</string>
 
     <key>StandardOutPath</key>
-    <string>/Users/utsavmehta/PersonalProjects/gameday/logs/checker.log</string>
+    <string>/Users/utsavmehta/PersonalProjects/gameday/logs/ipl-checker.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/utsavmehta/PersonalProjects/gameday/logs/checker-error.log</string>
+    <string>/Users/utsavmehta/PersonalProjects/gameday/logs/ipl-checker-error.log</string>
 
     <key>EnvironmentVariables</key>
     <dict>
