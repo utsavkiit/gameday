@@ -7,7 +7,8 @@
     "sync": "node --experimental-sqlite dist/sync.js",
     "check": "node --experimental-sqlite dist/checker.js",
     "ipl:sync": "node --experimental-sqlite dist/ipl-sync.js",
-    "ipl:check": "node --experimental-sqlite dist/ipl-checker.js"
+    "ipl:check": "node --experimental-sqlite dist/ipl-checker.js",
+    "launchd:reload": "bash ./scripts/reload-launch-agents.sh"
   },
   "dependencies": {
     "@slack/webhook": "^7.0.3",

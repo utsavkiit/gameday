@@ -1,19 +1,15 @@
 #!/usr/bin/env bash
 # ============================================================
-# F1 Slack Bot — setup script
+# Gameday setup script
 # Installs dependencies, builds TypeScript, and registers
-# the two LaunchDaemon plists.
+# the user LaunchAgents for the F1 and IPL bots.
 # ============================================================
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CHECKER_PLIST_SRC="$PROJECT_DIR/com.utsavmehta.f1bot.checker.plist"
-SYNC_PLIST_SRC="$PROJECT_DIR/com.utsavmehta.f1bot.sync.plist"
-CHECKER_PLIST_DEST="/Library/LaunchDaemons/com.utsavmehta.f1bot.checker.plist"
-SYNC_PLIST_DEST="/Library/LaunchDaemons/com.utsavmehta.f1bot.sync.plist"
 
 echo ""
-echo "=== F1 Slack Bot Setup ==="
+echo "=== Gameday Setup ==="
 echo "Project: $PROJECT_DIR"
 echo ""
 
@@ -75,35 +71,36 @@ echo "Running initial schedule sync..."
 node --experimental-sqlite dist/sync.js
 echo "✅ Initial sync complete"
 
-# ── 8. Install LaunchDaemons (requires sudo) ───────────────────
+# ── 8. Install LaunchAgents ────────────────────────────────────
 echo ""
-echo "Installing LaunchDaemons (requires sudo)..."
-
-# Unload existing if running
-sudo launchctl unload "$CHECKER_PLIST_DEST" 2>/dev/null || true
-sudo launchctl unload "$SYNC_PLIST_DEST" 2>/dev/null || true
-
-sudo cp "$CHECKER_PLIST_SRC" "$CHECKER_PLIST_DEST"
-sudo cp "$SYNC_PLIST_SRC" "$SYNC_PLIST_DEST"
-sudo launchctl load "$CHECKER_PLIST_DEST"
-sudo launchctl load "$SYNC_PLIST_DEST"
-echo "✅ LaunchDaemons installed and started"
+echo "Installing LaunchAgents..."
+npm run launchd:reload
+echo "✅ LaunchAgents installed and started"
 
 # ── 9. Show status ─────────────────────────────────────────────
 echo ""
 echo "=== Status ==="
-sudo launchctl list | grep "f1bot" || echo "(not found — check logs)"
+launchctl print "gui/$(id -u)/com.utsavmehta.f1bot.sync" >/dev/null && echo "✅ f1bot.sync loaded" || echo "❌ f1bot.sync not found"
+launchctl print "gui/$(id -u)/com.utsavmehta.f1bot.checker" >/dev/null && echo "✅ f1bot.checker loaded" || echo "❌ f1bot.checker not found"
+launchctl print "gui/$(id -u)/com.utsavmehta.iplbot.sync" >/dev/null && echo "✅ iplbot.sync loaded" || echo "❌ iplbot.sync not found"
+launchctl print "gui/$(id -u)/com.utsavmehta.iplbot.checker" >/dev/null && echo "✅ iplbot.checker loaded" || echo "❌ iplbot.checker not found"
 echo ""
 echo "📄 Logs:"
 echo "   Checker: $PROJECT_DIR/logs/checker.log"
 echo "   Sync:    $PROJECT_DIR/logs/sync.log"
+echo "   IPL checker: $PROJECT_DIR/logs/ipl-checker.log"
+echo "   IPL sync:    $PROJECT_DIR/logs/ipl-sync.log"
 echo ""
 echo "🛑 To stop:"
-echo "   sudo launchctl unload $CHECKER_PLIST_DEST"
-echo "   sudo launchctl unload $SYNC_PLIST_DEST"
+echo "   launchctl bootout gui/$(id -u)/com.utsavmehta.f1bot.sync"
+echo "   launchctl bootout gui/$(id -u)/com.utsavmehta.f1bot.checker"
+echo "   launchctl bootout gui/$(id -u)/com.utsavmehta.iplbot.sync"
+echo "   launchctl bootout gui/$(id -u)/com.utsavmehta.iplbot.checker"
 echo ""
-echo "✅ Done! F1 Bot is running. Checker fires every 5 min, sync runs daily at 6am."
+echo "✅ Done! LaunchAgents are installed."
+echo "   f1bot.checker runs every 15 minutes"
+echo "   iplbot.checker runs every 5 minutes"
+echo "   both sync jobs run Mondays at 6:00 AM"
 echo ""
-echo "ℹ️  IPL bot commands are separate:"
-echo "   npm run ipl:sync"
-echo "   npm run ipl:check"
+echo "ℹ️  To refresh launchd later:"
+echo "   npm run launchd:reload"
