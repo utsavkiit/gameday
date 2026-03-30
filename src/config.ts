@@ -37,6 +37,15 @@ export const SESSION_FILTER: string[] = raw
 
 export const HEALTHCHECK_URL = process.env.HEALTHCHECK_URL ?? "";
 
+export const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://localhost:11434";
+export const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3:8b";
+export const TTS_URL = process.env.TTS_URL ?? "http://localhost:8080";
+export const TTS_MODEL = process.env.TTS_MODEL ?? "mlx-community/Kokoro-82M-bf16";
+export const TTS_VOICE = process.env.TTS_VOICE ?? "af_heart";
+export const PODCAST_SERVE_URL = process.env.PODCAST_SERVE_URL ?? "http://100.104.18.70:8888";
+export const PODCAST_OUTPUT_DIR = process.env.PODCAST_OUTPUT_DIR ?? "~/VibeBot-Podcasts";
+export const PODCAST_DELAY_MINUTES = parseInt(process.env.PODCAST_DELAY_MINUTES ?? "90");
+
 export const OPENF1_BASE_URL = "https://api.openf1.org/v1";
 export const DB_PATH = path.resolve(__dirname, "../f1bot.sqlite");
 

@@ -8,7 +8,7 @@
 
 import { getDb, upsertSession, insertNotificationIfMissing, Session } from "./db";
 import { getUpcomingSessions, OpenF1Session } from "./openf1";
-import { REMINDER_HOURS_EARLY, REMINDER_MINUTES_FINAL, RESULTS_DELAY_MINUTES, SESSION_FILTER } from "./config";
+import { REMINDER_HOURS_EARLY, REMINDER_MINUTES_FINAL, RESULTS_DELAY_MINUTES, SESSION_FILTER, PODCAST_DELAY_MINUTES } from "./config";
 
 function addMinutes(isoUtc: string, minutes: number): string {
   return new Date(new Date(isoUtc).getTime() + minutes * 60_000).toISOString();
@@ -46,6 +46,7 @@ function scheduleNotifications(db: ReturnType<typeof getDb>, session: Session): 
 
   if (isRaceLike) {
     insertNotificationIfMissing(db, key, "live_update", addMinutes(start, 10));
+    insertNotificationIfMissing(db, key, "podcast", addMinutes(end, PODCAST_DELAY_MINUTES));
   }
 }
 
