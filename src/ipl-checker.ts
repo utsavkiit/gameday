@@ -21,7 +21,9 @@ import {
 import { getForecastSummary } from "./weather";
 
 function addMinutes(isoUtc: string, minutes: number): string {
-  return new Date(new Date(isoUtc).getTime() + minutes * 60_000).toISOString();
+  // Ensure strings without a timezone designator are treated as UTC, not local time.
+  const normalized = /Z$|[+-]\d{2}:\d{2}$/.test(isoUtc) ? isoUtc : isoUtc + "Z";
+  return new Date(new Date(normalized).getTime() + minutes * 60_000).toISOString();
 }
 
 function venueLabel(n: DueNotification): string {
@@ -75,7 +77,8 @@ async function handle(db: ReturnType<typeof getIplDb>, n: DueNotification): Prom
     }
 
     case "pre_match": {
-      const snapshot = await getMatchSnapshot(n.match_id, n.series_id);
+      // needs toss (match_info) + lineups (match_squad), not standings
+      const snapshot = await getMatchSnapshot(n.match_id, n.series_id, { squad: true, series: false });
       if (!snapshot || !snapshot.tossSummary || !snapshot.lineups.length) {
         retryOrClose(db, n, addMinutes(n.date_start, 20));
         return;
@@ -85,7 +88,8 @@ async function handle(db: ReturnType<typeof getIplDb>, n: DueNotification): Prom
     }
 
     case "mid_innings": {
-      const snapshot = await getMatchSnapshot(n.match_id, n.series_id);
+      // needs live score only (match_info)
+      const snapshot = await getMatchSnapshot(n.match_id, n.series_id, { squad: false, series: false });
       if (!snapshot || !isMidInningsSnapshot(snapshot)) {
         retryOrClose(db, n, addMinutes(n.date_end, 90));
         return;
@@ -95,7 +99,8 @@ async function handle(db: ReturnType<typeof getIplDb>, n: DueNotification): Prom
     }
 
     case "post_match": {
-      const snapshot = await getMatchSnapshot(n.match_id, n.series_id);
+      // needs result (match_info) + standings (series_info), not squad
+      const snapshot = await getMatchSnapshot(n.match_id, n.series_id, { squad: false, series: true });
       if (!snapshot || !snapshot.matchEnded) {
         retryOrClose(db, n, addMinutes(n.date_end, 240));
         return;

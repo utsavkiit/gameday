@@ -89,7 +89,12 @@ async function get<T = unknown>(endpoint: string, params: Record<string, string 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      return (await response.json()) as T;
+      const json = (await response.json()) as { status?: string; reason?: string } & T;
+      if (json.status === "failure") {
+        console.error(`[cricket] API failure on ${endpoint}: ${json.reason ?? "unknown reason"}`);
+        return null;
+      }
+      return json as T;
     } catch (error) {
       if (attempt === 2) {
         console.error(`[cricket] Failed after 3 attempts: ${url.toString()} — ${error}`);
@@ -275,19 +280,29 @@ function combineSnapshot(
   };
 }
 
-export async function getMatchSnapshot(matchId: string, seriesId: string): Promise<MatchSnapshot | null> {
-  const [info, scorecard, squad, standingsResponse] = await Promise.all([
+export interface SnapshotOptions {
+  squad?: boolean;
+  series?: boolean;
+}
+
+export async function getMatchSnapshot(
+  matchId: string,
+  seriesId: string,
+  options: SnapshotOptions = {}
+): Promise<MatchSnapshot | null> {
+  const { squad: needSquad = true, series: needSeries = true } = options;
+
+  const [info, squad, standingsResponse] = await Promise.all([
     get("match_info", { id: matchId }),
-    get("match_scorecard", { id: matchId }),
-    get("match_squad", { id: matchId }),
-    get("series_info", { id: seriesId }),
+    needSquad ? get("match_squad", { id: matchId }) : Promise.resolve(null),
+    needSeries ? get("series_info", { id: seriesId }) : Promise.resolve(null),
   ]);
 
-  if (!info && !scorecard && !squad) {
+  if (!info) {
     return null;
   }
 
-  const seriesData = extractSeriesData(standingsResponse);
+  const seriesData = needSeries ? extractSeriesData(standingsResponse) : {};
   const standings = parseStandings(
     seriesData.pointsTable ??
       seriesData.points_table ??
@@ -295,5 +310,5 @@ export async function getMatchSnapshot(matchId: string, seriesId: string): Promi
       seriesData.table
   );
 
-  return combineSnapshot(info, scorecard, squad, standings);
+  return combineSnapshot(info, null, squad, standings);
 }
