@@ -1,5 +1,5 @@
 /**
- * ipl-checker.ts — run every 5 minutes via launchd
+ * ipl-checker.ts — run every 15 minutes via launchd
  */
 
 import { getMatchSnapshot } from "./cricket";
@@ -91,7 +91,7 @@ async function handle(db: ReturnType<typeof getIplDb>, n: DueNotification): Prom
       // needs live score only (match_info)
       const snapshot = await getMatchSnapshot(n.match_id, n.series_id, { squad: false, series: false });
       if (!snapshot || !isMidInningsSnapshot(snapshot)) {
-        retryOrClose(db, n, addMinutes(n.date_end, 90));
+        retryOrClose(db, n, addMinutes(n.date_start, 200));
         return;
       }
       sent = await sendMidInnings(n, snapshot);
@@ -100,9 +100,13 @@ async function handle(db: ReturnType<typeof getIplDb>, n: DueNotification): Prom
 
     case "post_match": {
       // needs result (match_info) + standings (series_info), not squad
-      const snapshot = await getMatchSnapshot(n.match_id, n.series_id, { squad: false, series: true });
+      const snapshot = await getMatchSnapshot(n.match_id, n.series_id, {
+        squad: false,
+        series: true,
+        scorecard: true,
+      });
       if (!snapshot || !snapshot.matchEnded) {
-        retryOrClose(db, n, addMinutes(n.date_end, 240));
+        retryOrClose(db, n, addMinutes(n.date_start, 400));
         return;
       }
       sent = await sendPostMatch(n, snapshot);
@@ -129,9 +133,10 @@ async function main(): Promise<void> {
   }
 
   if (HEALTHCHECK_URL) {
-    await fetch(HEALTHCHECK_URL).catch((err) =>
-      console.error("[ipl-checker] Healthcheck ping failed:", err)
-    );
+    console.log(`[ipl-checker] Requesting healthcheck: ${HEALTHCHECK_URL}`);
+    await fetch(HEALTHCHECK_URL)
+      .then(() => console.log("[ipl-checker] Healthcheck ping succeeded"))
+      .catch((err) => console.error("[ipl-checker] Healthcheck ping failed:", err));
   }
 
   console.log("[ipl-checker] Done");

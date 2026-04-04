@@ -79,6 +79,9 @@ async function get<T = unknown>(endpoint: string, params: Record<string, string 
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, String(value));
   }
+  const safeUrl = new URL(url.toString());
+  safeUrl.searchParams.set("apikey", "[redacted]");
+  console.log(`[cricket] Requesting ${endpoint}: ${safeUrl.toString()}`);
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -94,8 +97,10 @@ async function get<T = unknown>(endpoint: string, params: Record<string, string 
         console.error(`[cricket] API failure on ${endpoint}: ${json.reason ?? "unknown reason"}`);
         return null;
       }
+      console.log(`[cricket] Success on ${endpoint}`);
       return json as T;
     } catch (error) {
+      console.error(`[cricket] Attempt ${attempt + 1} failed on ${endpoint}: ${error}`);
       if (attempt === 2) {
         console.error(`[cricket] Failed after 3 attempts: ${url.toString()} — ${error}`);
         return null;
@@ -227,15 +232,17 @@ function combineSnapshot(
 
   const info = asObject(infoRoot.data);
   const scorecard = asObject(scorecardRoot.data);
-  const squadData = asObject(squadRoot.data);
+  const squadData = squadRoot.data;
 
   const score = asArray<JsonObject>(info.score).length
     ? asArray<JsonObject>(info.score)
     : asArray<JsonObject>(scorecard.score);
   const innings = parseInnings(score.length ? score : scorecard.scorecard);
   const lineups = parseLineups(
-    asArray(squadData.squads).length
-      ? squadData.squads
+    asArray(squadData).length
+      ? squadData
+      : asArray(asObject(squadData).squads).length
+        ? asObject(squadData).squads
       : asArray(scorecard.teamInfo).map((team) => ({
           name: asString(asObject(team).name),
           players: asArray(asObject(team).players),
@@ -283,6 +290,7 @@ function combineSnapshot(
 export interface SnapshotOptions {
   squad?: boolean;
   series?: boolean;
+  scorecard?: boolean;
 }
 
 export async function getMatchSnapshot(
@@ -290,10 +298,15 @@ export async function getMatchSnapshot(
   seriesId: string,
   options: SnapshotOptions = {}
 ): Promise<MatchSnapshot | null> {
-  const { squad: needSquad = true, series: needSeries = true } = options;
+  const {
+    squad: needSquad = true,
+    series: needSeries = true,
+    scorecard: needScorecard = false,
+  } = options;
 
-  const [info, squad, standingsResponse] = await Promise.all([
+  const [info, scorecard, squad, standingsResponse] = await Promise.all([
     get("match_info", { id: matchId }),
+    needScorecard ? get("match_scorecard", { id: matchId }) : Promise.resolve(null),
     needSquad ? get("match_squad", { id: matchId }) : Promise.resolve(null),
     needSeries ? get("series_info", { id: seriesId }) : Promise.resolve(null),
   ]);
@@ -310,5 +323,5 @@ export async function getMatchSnapshot(
       seriesData.table
   );
 
-  return combineSnapshot(info, null, squad, standings);
+  return combineSnapshot(info, scorecard, squad, standings);
 }
