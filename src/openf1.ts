@@ -31,6 +31,30 @@ export interface Lap {
   driver_number: number;
   lap_duration: number | null;
   lap_number: number;
+  is_pit_out_lap: boolean;
+}
+
+export interface Stint {
+  driver_number: number;
+  stint_number: number;
+  lap_start: number;
+  lap_end: number | null;
+  compound: string;
+  tyre_age_at_start: number;
+}
+
+export interface PitStop {
+  driver_number: number;
+  lap_number: number;
+  pit_duration: number;
+}
+
+export interface RaceControlMessage {
+  lap_number: number | null;
+  category: string;
+  flag: string | null;
+  scope: string | null;
+  message: string;
 }
 
 export interface Weather {
@@ -98,9 +122,25 @@ export async function getDrivers(session_key: number): Promise<Map<number, Drive
 
 export async function getFastestLap(session_key: number): Promise<Lap | null> {
   const data = await get<Lap>("laps", { session_key });
-  const valid = data.filter((l) => l.lap_duration !== null);
+  const valid = data.filter((l) => l.lap_duration !== null && !l.is_pit_out_lap);
   if (!valid.length) return null;
   return valid.reduce((best, l) => (l.lap_duration! < best.lap_duration! ? l : best));
+}
+
+export async function getAllLaps(session_key: number): Promise<Lap[]> {
+  return get<Lap>("laps", { session_key });
+}
+
+export async function getStints(session_key: number): Promise<Stint[]> {
+  return get<Stint>("stints", { session_key });
+}
+
+export async function getPitStops(session_key: number): Promise<PitStop[]> {
+  return get<PitStop>("pit", { session_key });
+}
+
+export async function getRaceControl(session_key: number): Promise<RaceControlMessage[]> {
+  return get<RaceControlMessage>("race_control", { session_key });
 }
 
 export async function getLatestWeather(session_key: number): Promise<Weather | null> {

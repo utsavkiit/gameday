@@ -23,7 +23,8 @@ export type NotificationType =
   | "reminder_30m"
   | "session_start"
   | "live_update"
-  | "results";
+  | "results"
+  | "podcast";
 
 export interface DueNotification {
   id: number;

@@ -142,6 +142,34 @@ export async function sendResults(
   return send(blocks);
 }
 
+export async function sendPodcastReady(n: DueNotification, audioUrl: string): Promise<boolean> {
+  return send([
+    { type: "header", text: { type: "plain_text", text: "🎙 F1 Race Podcast" } },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: `*${meetingName(n)} — ${SESSION_DISPLAY[n.session_type] ?? n.session_type} Strategic Analysis*` },
+    },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: `🎧 <${audioUrl}|Listen now>` },
+    },
+  ]);
+}
+
+export async function sendPodcastScriptOnly(n: DueNotification, script: string): Promise<boolean> {
+  return send([
+    { type: "header", text: { type: "plain_text", text: "🎙 F1 Race Analysis" } },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: `*${meetingName(n)} — ${SESSION_DISPLAY[n.session_type] ?? n.session_type}*\n⚠️ Audio unavailable — here's the script:` },
+    },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: script.slice(0, 2900) },
+    },
+  ]);
+}
+
 export async function sendScheduleDigest(sessions: DueNotification[]): Promise<boolean> {
   const lines: string[] = [];
   let lastCountry = "";

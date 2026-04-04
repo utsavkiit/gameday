@@ -25,6 +25,7 @@ import {
   sendLiveUpdate,
   sendResults,
 } from "./slack";
+import { handlePodcast } from "./podcast/podcastHandler";
 import { REMINDER_MINUTES_FINAL, LIVE_POLL_INTERVAL_MINUTES, HEALTHCHECK_URL } from "./config";
 
 function addMinutes(isoUtc: string, minutes: number): string {
@@ -100,6 +101,11 @@ async function handle(db: ReturnType<typeof getDb>, n: DueNotification): Promise
         getFastestLap(n.session_key),
       ]);
       sent = await sendResults(n, positions, drivers, fastestLap);
+      break;
+    }
+
+    case "podcast": {
+      sent = await handlePodcast(n);
       break;
     }
   }
