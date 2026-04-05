@@ -136,10 +136,12 @@ export async function sendPostMatch(n: DueNotification, snapshot: MatchSnapshot)
     });
   }
 
-  blocks.push({
-    type: "section",
-    text: { type: "mrkdwn", text: `*Standings*\n${standingsText(snapshot)}` },
-  });
+  if (snapshot.standings.length) {
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: `*Standings*\n${standingsText(snapshot)}` },
+    });
+  }
 
   return send(blocks);
 }

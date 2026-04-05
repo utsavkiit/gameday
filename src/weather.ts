@@ -16,12 +16,14 @@ function asArray<T = unknown>(value: unknown): T[] {
 }
 
 async function getJson<T>(url: string): Promise<T | null> {
+  console.log(`[weather] Requesting ${url}`);
   try {
     const response = await fetch(url, {
       headers: { Accept: "application/json", "User-Agent": "GameDayBot/1.0" },
       signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    console.log(`[weather] Success ${url}`);
     return (await response.json()) as T;
   } catch (error) {
     console.error(`[weather] Request failed: ${url} — ${error}`);
